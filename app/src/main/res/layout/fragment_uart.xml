@@ -91,5 +91,17 @@
             android:gravity="top"
             android:scrollbarFadeDuration="0"
             android:textColorHighlight="#ffffff" />
+
+
+        <EditText
+            android:id="@+id/modifiedTextView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:cursorVisible="true"
+            android:text="modified"
+            android:scrollbarFadeDuration="0"
+            android:textColorHighlight="#ffffff" />
     </LinearLayout>
 </RelativeLayout>
