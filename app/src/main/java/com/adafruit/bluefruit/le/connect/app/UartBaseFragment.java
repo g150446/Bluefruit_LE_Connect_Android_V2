@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -48,6 +49,13 @@ import com.adafruit.bluefruit.le.connect.ble.central.BlePeripheralUart;
 import com.adafruit.bluefruit.le.connect.mqtt.MqttManager;
 import com.adafruit.bluefruit.le.connect.mqtt.MqttSettings;
 import com.adafruit.bluefruit.le.connect.utils.KeyboardUtils;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -74,6 +82,9 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
 
     // UI
     private EditText mBufferTextView;
+    private String modifiedText;
+
+    private EditText mModifiedTextView;
     private RecyclerView mBufferRecylerView;
     protected TimestampItemAdapter mBufferItemAdapter;
     private EditText mSendEditText;
@@ -135,6 +146,7 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
 
         final Context context = getContext();
 
+
         // Buffer recycler view
         if (context != null) {
             mBufferRecylerView = view.findViewById(R.id.bufferRecyclerView);
@@ -159,6 +171,9 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
 
         // Buffer
         mBufferTextView = view.findViewById(R.id.bufferTextView);
+
+        mModifiedTextView = view.findViewById(R.id.modifiedTextView);
+        modifiedText = "oncreate";
         if (mBufferTextView != null) {
             mBufferTextView.setKeyListener(null);     // make it not editable
         }
@@ -180,8 +195,38 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
         });
 
         mSendButton = view.findViewById(R.id.sendButton);
-        mSendButton.setOnClickListener(view12 -> onClickSend());
+        //mSendButton.setOnClickListener(view12 -> onClickSend());
+        Context tmpContext = getContext();
+mSendButton.setOnClickListener(new View.OnClickListener() {
+    public void onClick(View v) {
+        // クリック時の処理
 
+
+        RequestQueue queue = Volley.newRequestQueue(tmpContext);
+        String url ="https://codechacha.com/ja/android-cleartext-http-traffic-issue/";
+
+        // Request a string response from the provided URL.
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        // Display the first 500 characters of the response string.
+                        mModifiedTextView.setText("Response is: "+ response);
+
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                mModifiedTextView.setText(error.toString());
+            }
+        });
+
+        // Add the request to the RequestQueue.
+        queue.add(stringRequest);
+
+
+    }
+});
         final boolean isInMultiUartMode = isInMultiUartMode();
         mSendPeripheralSpinner = view.findViewById(R.id.sendPeripheralSpinner);
         mSendPeripheralSpinner.setVisibility(isInMultiUartMode ? View.VISIBLE : View.GONE);
@@ -540,6 +585,8 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
             mPacketsCacheLastSize = 0;
             mTextSpanBuffer.clear();
             mBufferTextView.setText("");
+
+            mModifiedTextView.setText("");
         }
     }
 
@@ -568,6 +615,8 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
                 }
 
                 mBufferTextView.setText(mTextSpanBuffer);
+
+                mModifiedTextView.setText(modifiedText);
                 mBufferTextView.setSelection(0, mTextSpanBuffer.length());        // to automatically scroll to the end
             }
 
@@ -583,6 +632,39 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
             final int color = colorForPacket(packet);
             final boolean isBold = isFontBoldForPacket(packet);
             final byte[] bytes = packet.getData();
+         /*  int upperInt = Byte.toUnsignedInt(bytes[0]);
+            int lowerInt = Byte.toUnsignedInt(bytes[1]);
+            int unsInt = ( upperInt << 8 ) | lowerInt ;
+            int connectedInt ;
+            if(unsInt > 32767) {
+                connectedInt = -32768 + (unsInt - 32768);
+            }else{
+                connectedInt = unsInt;
+            }
+            */
+
+            int ct =0;
+            int upperInt,lowerInt,unsInt,connectedInt;
+            upperInt =0;
+
+            modifiedText = "con:";
+            for (byte aByte : bytes) {
+                if(ct%2==0) {
+                    upperInt = Byte.toUnsignedInt(aByte);
+                }else{
+                    lowerInt = Byte.toUnsignedInt(aByte);
+                    unsInt = ( upperInt << 8 ) | lowerInt ;
+
+                    if(unsInt > 32767) {
+                        connectedInt = -32768 + (unsInt - 32768);
+                    }else{
+                        connectedInt = unsInt;
+                    }
+                    modifiedText += ","+connectedInt;
+                }
+                ct++;
+            }
+
             final String formattedData = mShowDataInHexFormat ? BleUtils.bytesToHex2(bytes) : BleUtils.bytesToText(bytes, true);
             addTextToSpanBuffer(mTextSpanBuffer, formattedData, color, isBold);
         }
