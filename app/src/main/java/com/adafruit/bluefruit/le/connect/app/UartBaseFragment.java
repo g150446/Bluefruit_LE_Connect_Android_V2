@@ -57,11 +57,16 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 // TODO: register
 public abstract class UartBaseFragment extends ConnectedPeripheralFragment implements UartPacketManagerBase.Listener, MqttManager.MqttManagerListener {
@@ -173,7 +178,7 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
         mBufferTextView = view.findViewById(R.id.bufferTextView);
 
         mModifiedTextView = view.findViewById(R.id.modifiedTextView);
-        modifiedText = "oncreate";
+        modifiedText = "";
         if (mBufferTextView != null) {
             mBufferTextView.setKeyListener(null);     // make it not editable
         }
@@ -203,9 +208,13 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
 
 
         RequestQueue queue = Volley.newRequestQueue(tmpContext);
+
+        String posturl ="https://navymouse.sakura.ne.jp/lolipop-flask/result";
+
+        /* Request a string response from the provided URL.
         String url ="https://codechacha.com/ja/android-cleartext-http-traffic-issue/";
 
-        // Request a string response from the provided URL.
+
         StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
                 new Response.Listener<String>() {
                     @Override
@@ -221,9 +230,45 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
             }
         });
 
-        // Add the request to the RequestQueue.
-        queue.add(stringRequest);
+*/
+        StringRequest postRequest = new StringRequest(Request.Method.POST,posturl,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
 
+
+                            mModifiedTextView.setText( response);
+
+                            modifiedText ="";
+                        } catch (Exception e) {
+                            // error
+                            mModifiedTextView.setText(e.toString());
+                        }
+                    }
+                },
+                new Response.ErrorListener(){
+                    @Override
+                    public void onErrorResponse(VolleyError error){
+                        //error
+                        mModifiedTextView.setText(error.toString());
+                    }
+                }){
+            @Override
+            protected Map<String,String> getParams(){
+                // パラメータ設定
+                Map<String,String> params = new HashMap<String,String>();
+                params.put("field",modifiedText.substring(1));
+
+
+                return params;
+            }
+        };
+
+        // Add the request to the RequestQueue.
+        //  queue.add(stringRequest);
+
+        queue.add(postRequest);
 
     }
 });
@@ -647,7 +692,7 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
             int upperInt,lowerInt,unsInt,connectedInt;
             upperInt =0;
 
-            modifiedText = "con:";
+
             for (byte aByte : bytes) {
                 if(ct%2==0) {
                     upperInt = Byte.toUnsignedInt(aByte);
@@ -662,9 +707,16 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
                     }
                     modifiedText += ","+connectedInt;
                 }
+
+                if(ct==240){
+
+                    modifiedText += ","+ (char)aByte;
+                }
+
                 ct++;
             }
 
+            modifiedText += "E";
             final String formattedData = mShowDataInHexFormat ? BleUtils.bytesToHex2(bytes) : BleUtils.bytesToText(bytes, true);
             addTextToSpanBuffer(mTextSpanBuffer, formattedData, color, isBold);
         }
