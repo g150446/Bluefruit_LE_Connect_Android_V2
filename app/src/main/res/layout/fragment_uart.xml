@@ -29,6 +29,13 @@
                 android:scrollbars="vertical"
                 android:singleLine="false" />
 
+
+            <Button
+                android:id="@+id/predButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="pred" />
+
             <Button
                 android:id="@+id/sendButton"
                 android:layout_width="wrap_content"

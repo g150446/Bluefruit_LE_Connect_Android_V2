@@ -342,6 +342,9 @@ class BlePeripheralsAdapter extends RecyclerView.Adapter<BlePeripheralsAdapter.V
                 }
             }
         });
+
+
+
         holder.view.setOnClickListener(view -> holder.togleExpanded());
 
         // Expanded view
@@ -349,6 +352,17 @@ class BlePeripheralsAdapter extends RecyclerView.Adapter<BlePeripheralsAdapter.V
         holder.dataTextView.setText(text);
 
         holder.rawDataButton.setOnClickListener(v -> mListener.onAdvertisementData(blePeripheral));
+
+        //my code
+        BlePeripheral selectedBlePeripheral = weakBlePeripheral.get();
+        if (selectedBlePeripheral != null) {
+            if (connectionState == BlePeripheral.STATE_DISCONNECTED) {
+                selectedBlePeripheral.connect(mContext);
+            }
+        }
+
+
+
     }
 
     @Override

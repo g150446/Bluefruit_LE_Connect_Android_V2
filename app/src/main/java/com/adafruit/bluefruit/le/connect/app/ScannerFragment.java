@@ -333,6 +333,8 @@ public class ScannerFragment extends Fragment implements ScannerStatusFragmentDi
             }
         });
 
+        mMultiConnectCheckBox.setChecked(true);
+
         openMultiConnectPanel(false, false);
 
         ViewGroup multiConnectTitleGroupView = view.findViewById(R.id.multiConnectTitleGroupView);
@@ -364,6 +366,7 @@ public class ScannerFragment extends Fragment implements ScannerStatusFragmentDi
             mScannerViewModel = new ViewModelProvider(this, new ViewModelProvider.AndroidViewModelFactory(activity.getApplication())).get(ScannerViewModel.class);
         }
 
+        mScannerViewModel.setFilterOnlyUartEnabled(true);
         // Scan results
         mScannerViewModel.getFilteredBlePeripherals().observe(this, blePeripherals -> mBlePeripheralsAdapter.setBlePeripherals(blePeripherals));
 
@@ -419,6 +422,8 @@ public class ScannerFragment extends Fragment implements ScannerStatusFragmentDi
                 mMultiConnectCheckBox.setChecked(isChecked);
             }
         });
+
+        mScannerViewModel.setIsMultiConnectEnabled(true);
 
         // Connection
         mScannerViewModel.getNumDevicesConnected().observe(this, numConnectedDevices -> {

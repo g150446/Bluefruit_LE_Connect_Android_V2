@@ -3,7 +3,7 @@
 Android app for use with Bluefruit Bluetooth LE modules and dev boards from Adafruit.
 
 
-## App Versions
+## App Versions mod
 
 - Master branch is for version 3.x of the app (Android) 
 

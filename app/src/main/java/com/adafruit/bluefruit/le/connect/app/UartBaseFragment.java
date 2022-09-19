@@ -62,6 +62,7 @@ import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +73,14 @@ import java.util.Map;
 public abstract class UartBaseFragment extends ConnectedPeripheralFragment implements UartPacketManagerBase.Listener, MqttManager.MqttManagerListener {
     // Log
     private final static String TAG = UartBaseFragment.class.getSimpleName();
+
+    //my data
+    Calendar calendarPast;
+    int groupCt =0;
+    boolean activePredMode = false;
+    String predText ="";
+    int tapCt =0;
+    Context tmpContext;
 
     // Configuration
     public final static int kDefaultMaxPacketsToPaintAsText = 500;
@@ -88,12 +97,14 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
     // UI
     private EditText mBufferTextView;
     private String modifiedText;
+    private String debugText="";
 
     private EditText mModifiedTextView;
     private RecyclerView mBufferRecylerView;
     protected TimestampItemAdapter mBufferItemAdapter;
     private EditText mSendEditText;
     private Button mSendButton;
+    private Button mPredButton;
     private MenuItem mMqttMenuItem;
     private Handler mMqttMenuItemAnimationHandler;
     private TextView mSentBytesTextView;
@@ -114,6 +125,7 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
     };
     private boolean isUITimerRunning = false;
 
+
     // Data
     protected final Handler mMainHandler = new Handler(Looper.getMainLooper());
     protected UartPacketManagerBase mUartData;
@@ -131,6 +143,8 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
 
     private int maxPacketsToPaintAsText;
     private int mPacketsCacheLastSize = 0;
+    private int localPredInt = 0;
+    private boolean localPredMode = false;
 
     // region Fragment Lifecycle
     public UartBaseFragment() {
@@ -151,6 +165,7 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
 
         final Context context = getContext();
 
+calendarPast = Calendar.getInstance();
 
         // Buffer recycler view
         if (context != null) {
@@ -200,8 +215,10 @@ public abstract class UartBaseFragment extends ConnectedPeripheralFragment imple
         });
 
         mSendButton = view.findViewById(R.id.sendButton);
+
+        mPredButton = view.findViewById(R.id.predButton);
         //mSendButton.setOnClickListener(view12 -> onClickSend());
-        Context tmpContext = getContext();
+        tmpContext = getContext();
 mSendButton.setOnClickListener(new View.OnClickListener() {
     public void onClick(View v) {
         // クリック時の処理
@@ -211,26 +228,7 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
 
         String posturl ="https://navymouse.sakura.ne.jp/lolipop-flask/result";
 
-        /* Request a string response from the provided URL.
-        String url ="https://codechacha.com/ja/android-cleartext-http-traffic-issue/";
 
-
-        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        // Display the first 500 characters of the response string.
-                        mModifiedTextView.setText("Response is: "+ response);
-
-                    }
-                }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                mModifiedTextView.setText(error.toString());
-            }
-        });
-
-*/
         StringRequest postRequest = new StringRequest(Request.Method.POST,posturl,
                 new Response.Listener<String>() {
                     @Override
@@ -272,6 +270,16 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
 
     }
 });
+
+        mPredButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // クリック時の処理
+
+               // activePredMode = true;
+                localPredMode = true;
+
+            }
+        });
         final boolean isInMultiUartMode = isInMultiUartMode();
         mSendPeripheralSpinner = view.findViewById(R.id.sendPeripheralSpinner);
         mSendPeripheralSpinner.setVisibility(isInMultiUartMode ? View.VISIBLE : View.GONE);
@@ -325,6 +333,13 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
     @Override
     public void onResume() {
         super.onResume();
+
+        activePredMode = false;
+        localPredMode=false;
+        localPredInt=0;
+        predText = "";
+        debugText="";
+        tapCt = 0;
 
         FragmentActivity activity = getActivity();
         if (activity != null) {
@@ -661,8 +676,17 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
 
                 mBufferTextView.setText(mTextSpanBuffer);
 
-                mModifiedTextView.setText(modifiedText);
+
                 mBufferTextView.setSelection(0, mTextSpanBuffer.length());        // to automatically scroll to the end
+
+                if(activePredMode || localPredMode){
+                    mBufferTextView.setText(predText);
+                    mModifiedTextView.setText(debugText);
+                }else{
+                    mBufferTextView.setText(debugText);
+                    mModifiedTextView.setText(modifiedText);
+                }
+
             }
 
             mPacketsCacheLastSize = packetsCacheSize;
@@ -692,34 +716,264 @@ mSendButton.setOnClickListener(new View.OnClickListener() {
             int upperInt,lowerInt,unsInt,connectedInt;
             upperInt =0;
 
+            boolean tapped = false;
+
 
             for (byte aByte : bytes) {
-                if(ct%2==0) {
-                    upperInt = Byte.toUnsignedInt(aByte);
-                }else{
-                    lowerInt = Byte.toUnsignedInt(aByte);
-                    unsInt = ( upperInt << 8 ) | lowerInt ;
+                if( ct < 240) {
+                    if (ct % 2 == 0) {
+                        upperInt = Byte.toUnsignedInt(aByte);
+                    } else {
+                        lowerInt = Byte.toUnsignedInt(aByte);
+                        unsInt = (upperInt << 8) | lowerInt;
 
-                    if(unsInt > 32767) {
-                        connectedInt = -32768 + (unsInt - 32768);
-                    }else{
-                        connectedInt = unsInt;
+                        if (unsInt > 32767) {
+                            connectedInt = -32768 + (unsInt - 32768);
+                        } else {
+                            connectedInt = unsInt;
+                        }
+                        modifiedText += "," + connectedInt;
                     }
-                    modifiedText += ","+connectedInt;
+                }//end of if ct < 240
+                if( ct == 240 || ct == 241){
+                    modifiedText += ","+ (int)aByte;
                 }
 
-                if(ct==240){
+                if( ct ==242){
+                    modifiedText += ","+ (int)aByte;
+                    if( (int)aByte == 1){
+                        tapped=true;
+                    }
+                }
+
+                if(ct==243){
+
+                    Calendar calendarNow = Calendar.getInstance();
+                    long diffTime = calendarNow.getTimeInMillis() - calendarPast.getTimeInMillis();
+
+                    if(diffTime > 200 ){
+                        groupCt++;
+                    }
+
+                    calendarPast = Calendar.getInstance();
+
+                    if(groupCt > 10000){
+                        groupCt = 0;
+                    }
+
+                   // modifiedText += ","+diffTime ;
 
                     modifiedText += ","+ (char)aByte;
+                    if(tapped){
+                        debugText +=  ","+ (char)aByte;
+                        if(activePredMode) {
+                            debugText += "," + (char) aByte;
+                        }
+
+                        if(localPredMode){
+                            char tapChar = (char) aByte;
+                            switch( tapChar){
+                                case 't':
+                                    localPredInt += 16;
+                                    break;
+                                case 'i':
+                                    localPredInt += 8;
+                                    break;
+                                case 'm':
+                                    localPredInt += 4;
+                                    break;
+                                case 'r':
+                                    localPredInt += 2;
+                                    break;
+                                case 'p':
+                                    localPredInt += 1;
+                                    break;
+                            }
+                        }
+                    }else{
+                        debugText +=  ",("+ (char)aByte +")";
+                    }
                 }
 
                 ct++;
             }
 
+
+
             modifiedText += "E";
+
+
+            if(localPredMode) {
+                if (tapCt % 5 == 4) {
+debugText += "#";
+                    String tmpStr = intToPredString(localPredInt);
+                    if( tmpStr.length() < 2) {
+                        predText += tmpStr;
+                    }
+                    localPredInt = 0;
+
+tapCt = -1;
+                }
+            }
+            if(activePredMode){
+                if(tapCt % 5 ==4){
+
+                    RequestQueue queue = Volley.newRequestQueue(tmpContext);
+
+                    String posturl ="http://160.251.6.68/create";
+
+
+                    StringRequest postRequest = new StringRequest(Request.Method.POST,posturl,
+                            new Response.Listener<String>() {
+                                @Override
+                                public void onResponse(String response) {
+                                    try {
+
+
+                                        predText += response;
+                                        mBufferTextView.setText( predText);
+
+                                        modifiedText ="";
+
+                                    } catch (Exception e) {
+                                        // error
+                                        mModifiedTextView.setText(e.toString());
+                                    }
+                                }
+                            },
+                            new Response.ErrorListener(){
+                                @Override
+                                public void onErrorResponse(VolleyError error){
+                                    //error
+                                    mModifiedTextView.setText(error.toString());
+                                }
+                            }){
+                        @Override
+                        protected Map<String,String> getParams(){
+                            // パラメータ設定
+                            Map<String,String> params = new HashMap<String,String>();
+                            params.put("msg",modifiedText.substring(1));
+
+
+                            return params;
+                        }
+                    };
+
+                    // Add the request to the RequestQueue.
+                    //  queue.add(stringRequest);
+
+                    queue.add(postRequest);
+
+
+                }
+            }
+
+            tapCt ++;
+
             final String formattedData = mShowDataInHexFormat ? BleUtils.bytesToHex2(bytes) : BleUtils.bytesToText(bytes, true);
             addTextToSpanBuffer(mTextSpanBuffer, formattedData, color, isBold);
         }
+    }
+
+    private String intToPredString( int inputInt ){
+        String ret ="";
+        switch(inputInt) {
+            case 1:
+                ret="u";
+                break;
+            case 2:
+                ret="o";
+                break;
+            case 3:
+                ret="s";
+                break;
+            case 4:
+                ret="i";
+                break;
+            case 5:
+                ret="z";
+                break;
+            case 6:
+                ret="l";
+                break;
+            case 7:
+                ret="switch";
+                break;
+            case 8:
+                ret="e";
+                break;
+            case 9:
+                ret="b";
+                break;
+            case 10:
+                ret="m";
+                break;
+            case 11:
+                ret="x";
+                break;
+            case 12:
+                ret="t";
+                break;
+            case 13:
+                ret="q";
+                break;
+            case 14:
+                ret="backspace";
+                break;
+            case 15:
+                ret="h";
+                break;
+            case 16:
+                ret="a";
+                break;
+            case 17:
+                ret="y";
+                break;
+            case 18:
+                ret="k";
+                break;
+            case 19:
+                ret="enter";
+                break;
+            case 20:
+                ret="d";
+                break;
+            case 21:
+                ret="w";
+                break;
+            case 22:
+                ret="g";
+                break;
+            case 23:
+                ret="c";
+                break;
+            case 24:
+                ret="n";
+                break;
+            case 25:
+                ret="p";
+                break;
+            case 26:
+                ret="f";
+                break;
+            case 27:
+                ret="v";
+                break;
+            case 28:
+                ret="shift";
+                break;
+            case 29:
+                ret="j";
+                break;
+            case 30:
+                ret="r";
+                break;
+            case 31:
+                ret=" ";
+                break;
+
+        }
+        return ret;
     }
 
     private static SpannableString stringFromPacket(UartPacket packet, boolean useHexMode, int color, boolean isBold) {
